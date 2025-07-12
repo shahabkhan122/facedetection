@@ -1,85 +1,100 @@
-# Face Detection
+# MediaPipeFaceDetector
 
-This package provides models for running real-time face detection.
+MediaPipeFaceDetector-MediaPipe wraps the MediaPipe JS Solution within the familiar
+TFJS API [mediapipe.dev](https://mediapipe.dev).
 
-Currently, we provide 1 model option:
+Please try our our live [demo](https://storage.googleapis.com/tfjs-models/demos/face-detection/index.html?model=mediapipe_face_detector).
 
-#### MediaPipe FaceDetection:
-[Demo](https://storage.googleapis.com/tfjs-models/demos/face-detection/index.html?model=mediapipe_face_detector)
+--------------------------------------------------------------------------------
 
-MediaPipe FaceDetection can detect multiple faces, each face contains 6 keypoints.
-
-More background information about the package, as well as its performance characteristics on different datasets, can be found here: [Short Range Model Card](https://drive.google.com/file/d/1d4-xJP9PVzOvMBDgIjz6NhvpnlG9_i0S/preview), [Sparse Full Range Model Card](https://drive.google.com/file/d/1aZtpSwsBhA1Epd-ZDfwoQYSTQwEfLm5Z/preview).
-
--------------------------------------------------------------------------------
 ## Table of Contents
-1. [How to Run It](#how-to-run-it)
-2. [Example Code and Demos](#example-code-and-demos)
 
--------------------------------------------------------------------------------
-## How to Run It
-In general there are two steps:
+1.  [Installation](#installation)
+2.  [Usage](#usage)
 
-You first create a detector by choosing one of the models from `SupportedModels`, including `MediaPipeFaceDetector`.
+## Installation
 
-For example:
+To use MediaPipeFaceDetector:
+
+Via script tags:
+
+```html
+<!-- Require the peer dependencies of face-detection. -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+
+<!-- You must explicitly require a TF.js backend if you're not using the TF.js union bundle. -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
+```
+
+Via npm:
+```sh
+yarn add @mediapipe/face_detection
+yarn add @tensorflow/tfjs-core, @tensorflow/tfjs-backend-webgl
+yarn add @tensorflow-models/face-detection
+```
+
+-----------------------------------------------------------------------
+## Usage
+
+If you are using the face-detection API via npm, you need to import the libraries first.
+
+### Import the libraries
+
+```javascript
+import '@mediapipe/face_detection';
+import '@tensorflow/tfjs-core';
+// Register WebGL backend.
+import '@tensorflow/tfjs-backend-webgl';
+import * as faceDetection from '@tensorflow-models/face-detection';
+```
+
+### Create a detector
+
+Pass in `faceDetection.SupportedModels.MediaPipeFaceDetector` from the
+`faceDetection.SupportedModels` enum list along with a `detectorConfig` to the
+`createDetector` method to load and initialize the model.
+
+`detectorConfig` is an object that defines MediaPipeFaceDetector specific configurations for `MediaPipeFaceDetectorMediaPipeModelConfig`:
+
+*   *runtime*: Must set to be 'mediapipe'.
+
+*   *maxFaces*: Defaults to 1. The maximum number of faces that will be detected by the model. The number of returned faces can be less than the maximum (for example when no faces are present in the input). It is highly recommended to set this value to the expected max number of faces, otherwise the model will continue to search for the missing faces which can slow down the performance.
+
+*   *modelType*: Optional. Possible values: 'short'|'full'. Defaults to 'short'. The short-range model that works best for faces within 2 meters from the camera, while the full-range model works best for faces within 5 meters. For the full-range option, a sparse model is used for its improved inference speed.
+
+*   *solutionPath*: The path to where the wasm binary and model files are located.
 
 ```javascript
 const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
 const detectorConfig = {
-  runtime: 'mediapipe', // or 'tfjs'
-}
-const detector = await faceDetection.createDetector(model, detectorConfig);
+  runtime: 'mediapipe',
+  solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection',
+                // or 'base/node_modules/@mediapipe/face_detection' in npm.
+};
+detector = await faceDetection.createDetector(model, detectorConfig);
 ```
 
-Then you can use the detector to detect faces.
+### Run inference
 
-```
-const faces = await detector.estimateFaces(image);
-```
+Now you can use the detector to detect faces. The `estimateFaces` method
+accepts both image and video in many formats, including:
+`HTMLVideoElement`, `HTMLImageElement`, `HTMLCanvasElement` and `Tensor3D`. If you want more
+options, you can pass in a second `estimationConfig` parameter.
 
-The returned face list contains detected faces for each face in the image.
-If the model cannot detect any faces, the list will be empty.
+`estimationConfig` is an object that defines MediaPipeFaceDetector specific configurations for `MediaPipeFaceDetectorMediaPipeEstimationConfig`:
 
-For each face, it contains a bounding box of the detected face, as well as an array of keypoints. `MediaPipeFaceDetector` returns 6 keypoints.
-Each keypoint contains x and y, as well as a name.
+*   *flipHorizontal*: Optional. Defaults to false. When image data comes from camera, the result has to flip horizontally.
 
-Example output:
-```
-[
-  {
-    box: {
-      xMin: 304.6476503248806,
-      xMax: 502.5079975897382,
-      yMin: 102.16298762367356,
-      yMax: 349.035215984403,
-      width: 197.86034726485758,
-      height: 246.87222836072945
-    },
-    keypoints: [
-      {x: 446.544237446397, y: 256.8054528661723, name: "rightEye"},
-      {x: 406.53152857172876, y: 255.8, "leftEye },
-      ...
-    ],
-  }
-]
+The following code snippet demonstrates how to run the model inference:
+
+```javascript
+const estimationConfig = {flipHorizontal: false};
+const faces = await detector.estimateFaces(image, estimationConfig);
 ```
 
-The `box` represents the bounding box of the face in the image pixel space, with `xMin`, `xMax` denoting the x-bounds, `yMin`, `yMax` denoting the y-bounds, and `width`, `height` are the dimensions of the bounding box.
-
-For the `keypoints`, x and y represent the actual keypoint position in the image pixel space.
-
-The name provides a label for the keypoint, which are 'rightEye', 'leftEye', 'noseTip', 'mouthCenter', 'rightEarTragion', and 'leftEarTragion' respectively.
-
-Refer to each model's documentation for specific configurations for the model
-and their performance.
-
-[MediaPipeFaceDetector MediaPipe Documentation](https://github.com/tensorflow/tfjs-models/tree/master/face-detection/src/mediapipe)
-
-[MediaPipeFaceDetector TFJS Documentation](https://github.com/tensorflow/tfjs-models/tree/master/face-detection/src/tfjs)
-
-## Example Code and Demos
-You may reference the demos for code examples. Details for how to run the demos
-are included in the `demos/`
-[folder](https://github.com/tensorflow/tfjs-models/tree/master/face-detection/demos).
-"# facedetection" 
+Please refer to the Face API
+[README](https://github.com/tensorflow/tfjs-models/blob/master/face-detection/README.md#how-to-run-it)
+about the structure of the returned `faces` array.
